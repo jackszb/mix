@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # 锁定版本，避免 ubuntu-latest 未来迁移到 Ubuntu 26 带来的不确定性
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
