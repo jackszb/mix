@@ -1,0 +1,44 @@
+name: Update ads domain list
+
+on:
+  schedule:
+    # 每天 UTC 03:17 运行一次（避开整点高峰）；北京时间约 11:17
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}   # 支持在 Actions 页面手动触发
+
+permissions:
+  contents: write   # 需要写权限才能把生成结果提交回仓库
+
+concurrency:
+  group: update-ads-list
+  cancel-in-progress: false   # 避免定时任务和手动触发互相打断
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04   # 锁定版本，避免 ubuntu-latest 未来迁移到 Ubuntu 26 带来的不确定性
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Fetch ads blocklist
+        run: python fetch_ads_sources.py
+        # 脚本本身容忍单个源失败（打印 WARN），
+        # 只有 NEVER_BLOCK 金丝雀触发或全部源失败时才会返回非零退出码，
+        # 这里让 job 因此失败，避免发布问题数据。
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rules/ads.txt rules/ads.json rules/ads.list
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update ads domain list ($(date -u +'%Y-%m-%d'))"
+          git push
